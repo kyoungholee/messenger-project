@@ -1,15 +1,30 @@
-import Button from "@/pages/components/Button";
-import Input from "@/pages/components/inputs/Input";
-import React, { useCallback, useState } from "react";
-import { useForm, FieldValues, SubmitHandler } from "react-hook-form";
-import AuthSocialButton from "./AuthSocialButton";
+"use client";
+
+import axios from "axios";
+import { signIn, useSession, SessionProvider } from "next-auth/react";
+import { useCallback, useEffect, useState } from "react";
 import { BsGithub, BsGoogle } from "react-icons/bs";
+import { FieldValues, SubmitHandler, useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+
+import Input from "@/pages/components/inputs/Input";
+import AuthSocialButton from "./AuthSocialButton";
+import Button from "@/pages/components/Button";
+import { toast } from "react-hot-toast";
 
 type Variant = "LOGIN" | "REGISTER";
 
-export default function AuthForm() {
+const AuthForm = () => {
+  const session = useSession();
+  const router = useRouter();
   const [variant, setVariant] = useState<Variant>("LOGIN");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (session?.status === "authenticated") {
+      router.push("/conversations");
+    }
+  }, [session?.status, router]);
 
   const toggleVariant = useCallback(() => {
     if (variant === "LOGIN") {
@@ -35,29 +50,66 @@ export default function AuthForm() {
     setIsLoading(true);
 
     if (variant === "REGISTER") {
-      //axios Register
+      console.log("통과!!!!");
+      console.log(data);
+      axios
+        .post("http://localhost:3000/api/route", {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+        })
+
+        .then((res) => console.log(res))
+
+        .catch(() => toast.error("Something went wrong!"))
+        .finally(() => setIsLoading(false));
     }
 
     if (variant === "LOGIN") {
-      //NextAuth Signin
+      signIn("credentials", {
+        ...data,
+        redirect: false,
+      })
+        .then((callback) => {
+          if (callback?.error) {
+            toast.error("Invalid credentials!");
+          }
+
+          if (callback?.ok) {
+            router.push("/users");
+          }
+        })
+        .finally(() => setIsLoading(false));
     }
   };
 
   const socialAction = (action: string) => {
     setIsLoading(true);
+
+    signIn(action, { redirect: false })
+      .then((callback) => {
+        if (callback?.error) {
+          toast.error("Invalid credentials!");
+        }
+
+        if (callback?.ok) {
+          router.push("/conversations");
+        }
+      })
+      .finally(() => setIsLoading(false));
   };
 
   return (
     <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <div
         className="
-      bg-white
-        px-4
-        py-8
-        shadow
-        sm:rounded-lg
-        sm:px-10
-      "
+        bg-white
+          px-4
+          py-8
+          shadow
+          sm:rounded-lg
+          sm:px-10
+        "
       >
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
           {variant === "REGISTER" && (
@@ -99,11 +151,11 @@ export default function AuthForm() {
           <div className="relative">
             <div
               className="
-              absolute 
-              inset-0 
-              flex 
-              items-center
-            "
+                absolute 
+                inset-0 
+                flex 
+                items-center
+              "
             >
               <div className="w-full border-t border-gray-300" />
             </div>
@@ -119,22 +171,22 @@ export default function AuthForm() {
               icon={BsGithub}
               onClick={() => socialAction("github")}
             />
-            {/* <AuthSocialButton
+            <AuthSocialButton
               icon={BsGoogle}
               onClick={() => socialAction("google")}
-            /> */}
+            />
           </div>
         </div>
         <div
           className="
-          flex 
-          gap-2 
-          justify-center 
-          text-sm 
-          mt-6 
-          px-2 
-          text-gray-500
-        "
+            flex 
+            gap-2 
+            justify-center 
+            text-sm 
+            mt-6 
+            px-2 
+            text-gray-500
+          "
         >
           <div>
             {variant === "LOGIN"
@@ -148,4 +200,6 @@ export default function AuthForm() {
       </div>
     </div>
   );
-}
+};
+
+export default AuthForm;
